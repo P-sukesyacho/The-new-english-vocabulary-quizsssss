@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英単語クイズゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8, #c8d4e0);
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .correct-button {
+            background-color: #4ade80;
+            border-color: #16a34a;
+        }
+        .incorrect-button {
+            background-color: #f87171;
+            border-color: #dc2626;
+        }
+        @media (min-width: 640px) {
+            .choice-button:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main container -->
+    <div class="flex flex-col items-center justify-center w-full max-w-2xl p-6 space-y-6">
+
+        <!-- Header -->
+        <header class="text-center">
+            <h1 class="text-4xl font-bold text-gray-800">英単語クイズ</h1>
+            <p class="mt-2 text-lg text-gray-600">意味を見て正しい英単語を選ぼう！</p>
+        </header>
+
+        <!-- Quiz card -->
+        <div id="quiz-card" class="card w-full p-6 sm:p-8 transition-all duration-500 transform">
+            <div id="quiz-content">
+                <!-- Quiz content will be dynamically inserted here -->
+                <p class="text-center text-gray-500 animate-pulse">クイズを読み込み中...</p>
+            </div>
+        </div>
+
+        <!-- Score and message -->
+        <div class="flex flex-col items-center justify-between w-full p-4 text-center rounded-lg shadow-inner bg-gray-100">
+            <div class="text-xl sm:text-2xl font-bold text-gray-700">スコア: <span id="score">0</span> / <span id="total-questions">0</span></div>
+            <div id="message" class="mt-2 text-md sm:text-lg font-medium text-gray-600"></div>
+        </div>
+        
+    </div>
+
+    <script type="module">
+        // CSV data from the previous conversation
+        const csvData = `英単語,意味,品詞
+weather,天気,名詞
+forecast,予報,名詞／動詞
+wind,風,名詞
+blow,吹く,動詞
+typhoon,台風,名詞
+hit,襲う,動詞
+flood,洪水,名詞
+warning,警報,名詞
+landslide,土砂崩れ,名詞
+occur,起こる,動詞
+rescue,救助／救助する,名詞／動詞
+drown,溺れる,動詞
+atmosphere,大気,名詞
+temperature,気温,名詞
+humidity,湿度,名詞
+degree,度,名詞
+mild,穏やかな,形容詞
+thunder,雷,名詞
+fog,霧,名詞
+disaster,災害,名詞
+earthquake,地震,名詞
+volcano,火山,名詞
+storm,嵐,名詞
+ocean,海洋,名詞
+continent,大陸,名詞
+island,島,名詞
+desert,砂漠,名詞
+valley,谷,名詞
+tropical,熱帯の,形容詞
+climate,気候,名詞
+human,人間,名詞
+evolution,進化,名詞
+survive,生き残る,動詞
+revive,復活する,動詞
+damage,損害／損なう,名詞／動詞
+environment,環境,名詞
+spoil,台無しにする,動詞
+view,景色／見る,名詞／動詞
+save,守る／節約する,動詞
+energy,エネルギー,名詞
+poisonous,有毒な,形容詞
+substance,物質,名詞
+chemical,化学の／化学物質,形容詞／名詞
+pollution,汚染,名詞
+garbage,ごみ,名詞
+trash,ごみ,名詞
+supply,供給／供給する,名詞／動詞
+electricity,電気,名詞
+reduce,減らす,動詞
+waste,無駄／廃棄物,名詞／動詞
+burn,燃やす,動詞
+fossil,化石,名詞
+fuel,燃料,名詞
+solar,太陽の,形容詞
+generate,生成する／発電する,動詞
+greenhouse,温室,名詞
+resource,資源,名詞
+material,材料,名詞
+at present,現在は,副詞句
+the other day,この前,副詞句
+before long,まもなく,副詞句
+at first,初めは,副詞句
+for the first time,初めて,副詞句
+for the time being,当分の間,副詞句
+these days,最近は,副詞句
+in those days,当時は,副詞句
+the day after tomorrow,明後日,副詞句
+the day before yesterday,一昨日,副詞句
+in the past,過去に,副詞句
+in the future,将来に,副詞句
+in front of A,Aの前に,前置詞句
+"at[in] the back of A",Aの後ろに,前置詞句
+in the middle of A,Aの中央に,前置詞句
+in the north of A,Aの北部に,前置詞句
+next to A,Aの隣に,前置詞句
+in the distance,遠くに,副詞句
+do one's best,ベストを尽くす,動詞
+"do A [a] favor",Aのお願いを聞く,動詞
+do A good,Aのためになる,動詞
+do without A,Aなしで済ます,動詞
+go off,爆発する／鳴る,動詞
+go by,（時間が）過ぎる,動詞
+go over A,Aを見直す,動詞
+go through A,Aを経験する,動詞
+come true,実現する,動詞
+come across A,Aに偶然出会う,動詞
+come up with A,Aを思いつく,動詞
+take after A,Aに似ている,動詞
+take notes,メモを取る,動詞
+take place,起こる／開催される,動詞
+take A for granted,Aを当然と思う,動詞
+be proud of A,Aを誇りに思う,動詞
+be absent from A,Aを欠席する,動詞
+be free from A,Aがない／免れる,動詞
+be far from A,Aからほど遠い,動詞
+be famous for A,Aで有名,動詞
+tell A from B,AとBを見分ける,動詞
+take A for B,AをBだと思う,動詞
+exchange A for B,AをBと交換する,動詞
+turn A into B,AをBに変える,動詞
+invite A to B,AをBに招待する,動詞
+add A to B,AをBに加える,動詞
+prefer A to B,AをBより好む,動詞
+in time,間に合って,副詞
+on time,時間通りに,副詞
+be used to A,Aに慣れている,動詞
+used to do,以前は〜していた,動詞
+be tired of A,Aに飽きている,動詞
+be tired from A,Aで疲れている,動詞
+put off A,Aを延期する,動詞
+put out A,Aを消す,動詞
+take care of A,Aの世話をする,動詞
+look after A,Aの世話をする,動詞
+take part in A,Aに参加する,動詞
+participate in A,Aに参加する,動詞
+perform,行う／演じる,動詞
+task,仕事／課題,名詞
+positive,前向きな,形容詞
+attitude,態度,名詞
+negative,否定的な,形容詞
+image,イメージ,名詞
+judge,判断する,動詞
+appearance,外見,名詞
+personal,個人的な,形容詞
+experience,経験,名詞／動詞
+second,秒／2番目の,名詞／形容詞
+moment,瞬間,名詞
+decade,10年間,名詞
+conscious,意識している,形容詞
+pleasant,快い,形容詞
+successful,成功した,形容詞
+realistic,現実的な,形容詞
+comfortable,快適な,形容詞
+certain,確かな,形容詞
+available,利用できる,形容詞
+furniture,家具,名詞
+baggage,荷物,名詞
+clothing,衣服,名詞
+ideal,理想的な,形容詞
+proper,適切な,形容詞
+suitable,適した,形容詞
+appropriate,適切な,形容詞
+confident,自信のある,形容詞
+essential,不可欠な,形容詞
+valuable,価値のある,形容詞
+employer,雇用主,名詞
+employee,従業員,名詞
+staff,職員,名詞
+stuff,もの／こと,名詞
+daily,毎日の,形容詞
+dairy,乳製品の,形容詞
+economy,経済,名詞
+economic,経済の,形容詞
+economical,経済的な／節約の,形容詞
+rise,上がる,動詞
+arise,生じる,動詞
+raise,上げる,動詞
+law,法律,名詞
+raw,生の,形容詞
+row,列,名詞
+mail,郵便,名詞
+male,男性,名詞
+principle,原理,名詞
+principal,校長／主要な,名詞／形容詞
+sow,種をまく,動詞
+sew,縫う,動詞
+bare,裸の,形容詞
+bear,熊／耐える,名詞／動詞
+constantly,絶えず,副詞
+frequently,しばしば,副詞
+occasionally,時々,副詞`;
+
+        // Function to parse CSV data into an array of words
+        function parseCSV(text) {
+            const lines = text.trim().split('\n').slice(1); // Skip the header row
+            return lines.map(line => {
+                const [word, meaning, partOfSpeech] = line.split(',');
+                return { word: word.trim(), meaning: meaning.trim(), partOfSpeech: partOfSpeech.trim() };
+            });
+        }
+
+        const words = parseCSV(csvData);
+        let score = 0;
+        let totalQuestions = 0;
+        let currentQuestion = {};
+
+        const quizContentEl = document.getElementById('quiz-content');
+        const scoreEl = document.getElementById('score');
+        const totalQuestionsEl = document.getElementById('total-questions');
+        const messageEl = document.getElementById('message');
+
+        // Set up the synthesizer for sound effects
+        const correctSynth = new Tone.Synth({
+            oscillator: { type: "triangle" },
+            envelope: {
+                attack: 0.005,
+                decay: 0.1,
+                sustain: 0.05,
+                release: 0.1
+            }
+        }).toDestination();
+
+        const incorrectSynth = new Tone.Synth({
+            oscillator: { type: "square" },
+            envelope: {
+                attack: 0.01,
+                decay: 0.2,
+                sustain: 0.05,
+                release: 0.3
+            }
+        }).toDestination();
+
+        // Play sound for correct answer
+        function playCorrectSound() {
+            correctSynth.triggerAttackRelease("C5", "8n");
+        }
+
+        // Play sound for incorrect answer
+        function playIncorrectSound() {
+            incorrectSynth.triggerAttackRelease("G3", "8n");
+        }
+
+        // Function to shuffle an array randomly
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Function to generate a new quiz question
+        function generateQuiz() {
+            // Select a random correct word
+            const correctAnswer = words[Math.floor(Math.random() * words.length)];
+            currentQuestion = correctAnswer;
+
+            // Select 3 incorrect answers
+            const incorrectAnswers = shuffleArray(words.filter(w => w.word !== correctAnswer.word))
+                .slice(0, 3);
+
+            // Shuffle the choices
+            const choices = shuffleArray([...incorrectAnswers, correctAnswer]);
+
+            // Update the UI
+            quizContentEl.innerHTML = `
+                <div class="mb-6 text-center">
+                    <p class="text-3xl sm:text-4xl font-bold text-gray-800">${correctAnswer.meaning}</p>
+                    <p class="mt-2 text-md sm:text-lg text-gray-500">${correctAnswer.partOfSpeech}</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    ${choices.map(choice => `
+                        <button class="choice-button w-full px-4 py-3 sm:px-6 sm:py-4 text-lg sm:text-xl font-semibold text-center text-gray-800 bg-gray-100 rounded-xl shadow-md border-2 border-gray-200 transition-all duration-300 transform hover:scale-105" data-word="${choice.word}">
+                            ${choice.word}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+            totalQuestions++;
+            totalQuestionsEl.textContent = totalQuestions;
+
+            // Add event listeners to the buttons
+            document.querySelectorAll('.choice-button').forEach(button => {
+                button.addEventListener('click', handleAnswer);
+            });
+        }
+
+        // Handle the answer when a choice is selected
+        function handleAnswer(event) {
+            const selectedButton = event.target;
+            const selectedWord = selectedButton.dataset.word;
+            const correctWord = currentQuestion.word;
+
+            // Temporarily disable event listeners for all buttons
+            document.querySelectorAll('.choice-button').forEach(button => {
+                button.disabled = true;
+            });
+
+            if (selectedWord === correctWord) {
+                // Correct answer
+                score++;
+                playCorrectSound(); // Play correct sound
+                messageEl.textContent = '正解！';
+                messageEl.className = 'mt-2 text-lg font-bold text-green-600 animate-pulse';
+                selectedButton.classList.add('correct-button');
+                selectedButton.classList.remove('bg-gray-100', 'border-gray-200');
+            } else {
+                // Incorrect answer
+                playIncorrectSound(); // Play incorrect sound
+                messageEl.textContent = `不正解... 正解は「${correctWord}」でした。`;
+                messageEl.className = 'mt-2 text-lg font-bold text-red-600 animate-pulse';
+                selectedButton.classList.add('incorrect-button');
+                selectedButton.classList.remove('bg-gray-100', 'border-gray-200');
+
+                // Highlight the correct button as well
+                document.querySelector(`[data-word="${correctWord}"]`).classList.add('correct-button');
+                document.querySelector(`[data-word="${correctWord}"]`).classList.remove('bg-gray-100', 'border-gray-200');
+            }
+
+            // Update the score
+            scoreEl.textContent = score;
+
+            // Generate the next quiz question after 1.5 seconds
+            setTimeout(() => {
+                messageEl.textContent = '';
+                messageEl.className = 'mt-2 text-lg font-medium text-gray-600';
+                generateQuiz();
+            }, 1500);
+        }
+
+        // Start the quiz when the page has finished loading
+        window.onload = generateQuiz;
+    </script>
+</body>
+</html>
